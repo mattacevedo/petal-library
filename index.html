@@ -1,0 +1,1545 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+  <title>Library Kiosk</title>
+  <style>
+    /* ================================================================
+       BASE & RESET
+    ================================================================ */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --primary:      #005030;
+      --primary-dark: #003d24;
+      --accent:       #f47321;
+      --bg:           #f0f2f5;
+      --card:         #ffffff;
+      --text:         #1a1a2e;
+      --text-muted:   #6c757d;
+      --success:      #28a745;
+      --error:        #dc3545;
+      --warn:         #f0ad00;
+      --border:       #dee2e6;
+      --shadow:       0 4px 20px rgba(0,0,0,0.10);
+    }
+
+    html, body {
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      user-select: none;
+      -webkit-user-select: none;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    #app {
+      width: 100%;
+      height: 100vh;
+      position: relative;
+      overflow: hidden;
+    }
+
+    /* ================================================================
+       SCREEN SYSTEM
+    ================================================================ */
+    .screen {
+      position: absolute;
+      inset: 0;
+      display: none;
+      flex-direction: column;
+    }
+    .screen.active { display: flex; }
+
+    /* ================================================================
+       SHARED HEADER
+    ================================================================ */
+    .kiosk-header {
+      background: var(--primary);
+      color: white;
+      height: 80px;
+      padding: 0 32px;
+      display: flex;
+      align-items: center;
+      gap: 20px;
+      flex-shrink: 0;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+    }
+
+    .kiosk-header .logo-img {
+      height: 40px;
+      width: auto;
+      max-width: 280px;
+      object-fit: contain;
+      object-position: left center;
+    }
+
+    .kiosk-header .logo-text {
+      height: 52px;
+      display: flex;
+      align-items: center;
+      background: rgba(255,255,255,0.15);
+      border-radius: 8px;
+      padding: 0 18px;
+      font-size: 20px;
+      font-weight: 700;
+      letter-spacing: 1px;
+    }
+
+    .kiosk-header .hdr-titles {
+      flex: 1;
+      min-width: 0;
+    }
+
+    .kiosk-header .hdr-name {
+      font-size: 24px;
+      font-weight: 700;
+      line-height: 1.2;
+    }
+
+    .kiosk-header .hdr-inst {
+      font-size: 14px;
+      opacity: 0.8;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    /* clock removed */
+
+    /* ================================================================
+       SHARED BUTTON STYLES
+    ================================================================ */
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+      height: 60px;
+      padding: 0 28px;
+      border: none;
+      border-radius: 12px;
+      font-size: 19px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: filter 0.15s, transform 0.1s;
+      white-space: nowrap;
+      font-family: inherit;
+    }
+    .btn:active  { transform: scale(0.96); }
+    .btn:disabled { opacity: 0.4; cursor: not-allowed; transform: none; }
+
+    .btn-primary { background: var(--primary); color: white; }
+    .btn-primary:hover  { filter: brightness(1.15); }
+    .btn-accent  { background: var(--accent); color: white; }
+    .btn-accent:hover   { filter: brightness(1.1); }
+    .btn-success { background: var(--success); color: white; }
+    .btn-success:hover  { filter: brightness(1.1); }
+    .btn-danger  { background: var(--error); color: white; }
+    .btn-danger:hover   { filter: brightness(1.1); }
+    .btn-outline {
+      background: white;
+      color: var(--text);
+      border: 2px solid var(--border);
+    }
+    .btn-outline:hover { border-color: var(--primary); color: var(--primary); }
+    .btn-ghost {
+      background: transparent;
+      color: var(--text-muted);
+    }
+    .btn-ghost:hover { background: rgba(0,0,0,0.05); }
+
+    /* ================================================================
+       HOME SCREEN
+    ================================================================ */
+    #screen-home .body {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 32px 24px;
+    }
+
+    /* Centered content column — max-width keeps it readable on wide displays */
+    .home-content {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 32px;
+      width: 100%;
+      max-width: 580px;
+    }
+
+    .home-welcome {
+      text-align: center;
+    }
+    .home-welcome h2 {
+      font-size: 38px;
+      font-weight: 300;
+      margin-bottom: 12px;
+    }
+    .home-welcome .tagline {
+      font-size: 20px;
+      color: var(--text);
+      margin-bottom: 8px;
+    }
+    .home-welcome p {
+      font-size: 17px;
+      color: var(--text-muted);
+    }
+
+    .barcode-row {
+      display: flex;
+      gap: 12px;
+      align-items: center;
+      width: 100%;
+    }
+    .barcode-row input {
+      flex: 1;
+      height: 64px;
+      border: 3px solid var(--border);
+      border-radius: 12px;
+      padding: 0 20px;
+      font-size: 22px;
+      font-family: inherit;
+      outline: none;
+      transition: border-color 0.2s;
+      background: white;
+    }
+    .barcode-row input:focus {
+      border-color: var(--primary);
+      box-shadow: 0 0 0 3px rgba(0, 80, 48, 0.15);
+    }
+    .barcode-row .btn {
+      height: 64px;
+      font-size: 19px;
+      flex-shrink: 0;
+    }
+
+    .divider-or {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      width: 100%;
+      color: var(--text-muted);
+      font-size: 16px;
+    }
+    .divider-or::before, .divider-or::after {
+      content: '';
+      flex: 1;
+      height: 1px;
+      background: var(--border);
+    }
+
+    .scan-hint {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      background: #fff8e1;
+      border: 1px solid #ffe082;
+      border-radius: 12px;
+      padding: 16px 28px;
+      font-size: 18px;
+      color: #795548;
+      width: 100%;
+    }
+    .scan-hint .icon { font-size: 30px; flex-shrink: 0; }
+
+    /* ================================================================
+       LOADING SCREEN
+    ================================================================ */
+    #screen-loading {
+      background: rgba(255,255,255,0.95);
+      align-items: center;
+      justify-content: center;
+      gap: 24px;
+    }
+    .spinner {
+      width: 64px;
+      height: 64px;
+      border: 7px solid var(--border);
+      border-top-color: var(--primary);
+      border-radius: 50%;
+      animation: spin 0.85s linear infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    #loading-text {
+      font-size: 22px;
+      color: var(--text-muted);
+    }
+
+    /* ================================================================
+       BOOK SCREEN
+    ================================================================ */
+    #screen-book .body {
+      flex: 1;
+      display: flex;
+      padding: 24px 28px;
+      gap: 24px;
+      overflow: hidden;
+    }
+
+    /* Left: cover */
+    .book-cover-col {
+      width: 190px;
+      flex-shrink: 0;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 10px;
+    }
+    .book-cover-col img,
+    .book-cover-placeholder {
+      width: 175px;
+      height: 255px;
+      border-radius: 8px;
+      box-shadow: var(--shadow);
+    }
+    .book-cover-col img { object-fit: cover; }
+    .book-cover-placeholder {
+      background: linear-gradient(135deg, var(--primary) 0%, #1a6644 100%);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 52px;
+      color: rgba(255,255,255,0.7);
+    }
+
+    /* Center: book info */
+    .book-info-col {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      overflow: hidden;
+      min-width: 0;
+    }
+    .book-title {
+      font-size: 28px;
+      font-weight: 700;
+      line-height: 1.25;
+      display: -webkit-box;
+      -webkit-line-clamp: 2;
+      -webkit-box-orient: vertical;
+      overflow: hidden;
+    }
+    .book-subtitle {
+      font-size: 18px;
+      color: var(--text-muted);
+      font-style: italic;
+      display: -webkit-box;
+      -webkit-line-clamp: 1;
+      -webkit-box-orient: vertical;
+      overflow: hidden;
+    }
+    .book-authors {
+      font-size: 19px;
+      font-weight: 600;
+      color: var(--primary);
+    }
+    .book-meta-row {
+      display: flex;
+      gap: 20px;
+      font-size: 15px;
+      color: var(--text-muted);
+    }
+    .book-synopsis {
+      font-size: 15px;
+      color: var(--text-muted);
+      line-height: 1.55;
+      display: -webkit-box;
+      -webkit-line-clamp: 4;
+      -webkit-box-orient: vertical;
+      overflow: hidden;
+      flex: 1;
+    }
+    .book-status-row {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+    .status-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 7px 18px;
+      border-radius: 24px;
+      font-size: 17px;
+      font-weight: 700;
+    }
+    .status-badge.available   { background: #d4edda; color: #155724; }
+    .status-badge.checked-out { background: #fff3cd; color: #856404; }
+    .status-badge.unavailable { background: #f8d7da; color: #721c24; }
+
+    .checkout-detail {
+      font-size: 15px;
+      color: var(--text-muted);
+    }
+    .checkout-detail strong { color: var(--text); }
+
+    /* Right: actions */
+    .book-action-col {
+      width: 250px;
+      flex-shrink: 0;
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+      justify-content: center;
+    }
+    .book-action-col .btn { width: 100%; }
+    .action-note {
+      font-size: 15px;
+      color: var(--text-muted);
+      text-align: center;
+      padding: 0 8px;
+    }
+
+    /* ================================================================
+       USER SEARCH SCREEN
+    ================================================================ */
+    #screen-user-search .body {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      padding: 24px 36px;
+      gap: 18px;
+      overflow: hidden;
+    }
+
+    .us-top {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+    }
+    .us-top h2 {
+      font-size: 26px;
+      font-weight: 400;
+      flex: 1;
+    }
+
+    .search-bar {
+      display: flex;
+      gap: 10px;
+    }
+    .search-bar input {
+      flex: 1;
+      height: 56px;
+      border: 3px solid var(--border);
+      border-radius: 12px;
+      padding: 0 18px;
+      font-size: 21px;
+      outline: none;
+      font-family: inherit;
+      transition: border-color 0.2s;
+      background: white;
+    }
+    .search-bar input:focus { border-color: var(--primary); }
+    .search-bar .btn { height: 56px; }
+
+    /* User results grid: 3 columns */
+    .user-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 12px;
+      overflow-y: auto;
+      flex: 1;
+      align-content: start;
+      padding-right: 4px;
+    }
+    .user-grid::-webkit-scrollbar { width: 5px; }
+    .user-grid::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+
+    .user-card {
+      background: white;
+      border: 2px solid var(--border);
+      border-radius: 12px;
+      padding: 14px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      cursor: pointer;
+      transition: border-color 0.15s, background 0.15s, transform 0.1s;
+    }
+    .user-card:hover, .user-card:active {
+      border-color: var(--primary);
+      background: #f0f7f3;
+      transform: scale(1.025);
+    }
+    .user-avatar {
+      width: 52px;
+      height: 52px;
+      border-radius: 50%;
+      object-fit: cover;
+      flex-shrink: 0;
+    }
+    .user-avatar-initials {
+      width: 52px;
+      height: 52px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 700;
+      color: white;
+      flex-shrink: 0;
+      font-size: 20px;
+    }
+    .user-card-text { min-width: 0; overflow: hidden; }
+    .user-card-name {
+      font-size: 17px;
+      font-weight: 600;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .user-card-sub {
+      font-size: 13px;
+      color: var(--text-muted);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .us-empty {
+      grid-column: 1/-1;
+      text-align: center;
+      padding: 48px 0;
+      font-size: 20px;
+      color: var(--text-muted);
+    }
+
+    .us-bottom {
+      display: flex;
+      justify-content: flex-end;
+      gap: 12px;
+    }
+
+    /* ================================================================
+       CONFIRM SCREEN
+    ================================================================ */
+    #screen-confirm .body {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      padding: 24px 36px;
+      gap: 20px;
+      overflow: hidden;
+    }
+
+    #confirm-heading {
+      font-size: 30px;
+      font-weight: 400;
+    }
+
+    .confirm-cards {
+      flex: 1;
+      display: flex;
+      gap: 24px;
+      min-height: 0;
+    }
+
+    .confirm-book-card {
+      flex: 1;
+      background: white;
+      border-radius: 16px;
+      padding: 22px;
+      display: flex;
+      gap: 18px;
+      align-items: flex-start;
+      box-shadow: var(--shadow);
+      overflow: hidden;
+    }
+    .confirm-book-card img,
+    .confirm-book-cover-ph {
+      width: 110px;
+      height: 165px;
+      border-radius: 6px;
+      flex-shrink: 0;
+    }
+    .confirm-book-card img { object-fit: cover; }
+    .confirm-book-cover-ph {
+      background: linear-gradient(135deg, var(--primary) 0%, #1a6644 100%);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 38px;
+      color: rgba(255,255,255,0.7);
+    }
+    .confirm-book-text { min-width: 0; overflow: hidden; }
+    .confirm-book-text h3 {
+      font-size: 22px;
+      font-weight: 700;
+      margin-bottom: 6px;
+      line-height: 1.3;
+      display: -webkit-box;
+      -webkit-line-clamp: 2;
+      -webkit-box-orient: vertical;
+      overflow: hidden;
+    }
+    .confirm-book-text .cb-authors {
+      font-size: 17px;
+      font-weight: 600;
+      color: var(--primary);
+      margin-bottom: 6px;
+    }
+    .confirm-book-text .cb-detail {
+      font-size: 15px;
+      color: var(--text-muted);
+      margin-bottom: 3px;
+    }
+
+    .confirm-user-card {
+      width: 320px;
+      flex-shrink: 0;
+      background: white;
+      border-radius: 16px;
+      padding: 22px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 10px;
+      text-align: center;
+      box-shadow: var(--shadow);
+    }
+    .confirm-user-card .cu-name {
+      font-size: 20px;
+      font-weight: 700;
+    }
+    .confirm-user-card .cu-detail {
+      font-size: 14px;
+      color: var(--text-muted);
+    }
+
+    .confirm-notice {
+      border-radius: 12px;
+      padding: 14px 22px;
+      font-size: 19px;
+    }
+    .confirm-notice.checkout { background: #e8f5e9; border: 2px solid #a5d6a7; color: #2e7d32; }
+    .confirm-notice.checkin  { background: #fff3e0; border: 2px solid #ffcc80; color: #e65100; }
+    .confirm-notice.renew    { background: #e3f2fd; border: 2px solid #90caf9; color: #1565c0; }
+
+    .confirm-buttons {
+      display: flex;
+      gap: 14px;
+      justify-content: flex-end;
+    }
+    .confirm-buttons .btn { width: 210px; }
+
+    /* ================================================================
+       SUCCESS SCREEN
+    ================================================================ */
+    #screen-success .body {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 22px;
+      padding: 40px;
+      background: white;
+    }
+    .success-circle {
+      width: 110px; height: 110px;
+      border-radius: 50%;
+      background: var(--success);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 54px;
+      color: white;
+      box-shadow: 0 8px 28px rgba(40,167,69,0.35);
+    }
+    .success-title { font-size: 40px; font-weight: 700; color: var(--success); }
+    .success-msg   { font-size: 24px; text-align: center; max-width: 700px; }
+    .success-detail{ font-size: 19px; color: var(--text-muted); text-align: center; }
+    .success-auto  { font-size: 17px; color: var(--text-muted); background: var(--bg); padding: 10px 24px; border-radius: 8px; }
+
+    /* ================================================================
+       ERROR SCREEN
+    ================================================================ */
+    #screen-error .body {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 22px;
+      padding: 40px;
+      background: white;
+    }
+    .error-circle {
+      width: 110px; height: 110px;
+      border-radius: 50%;
+      background: var(--error);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 54px;
+      color: white;
+    }
+    .error-heading { font-size: 34px; font-weight: 700; color: var(--error); }
+    .error-msg { font-size: 21px; text-align: center; max-width: 700px; color: var(--text); }
+    .error-buttons { display: flex; gap: 14px; }
+    .error-buttons .btn { width: 200px; }
+  </style>
+</head>
+<body>
+<div id="app">
+
+  <!-- ============================================================
+       HOME SCREEN
+  ============================================================ -->
+  <div id="screen-home" class="screen active">
+    <header class="kiosk-header" id="hdr-home"></header>
+    <div class="body">
+      <div class="home-content">
+        <div class="home-welcome">
+          <h2>Welcome to the PETAL Library</h2>
+          <p class="tagline">Borrow books for two weeks, with one one-week renewal.</p>
+          <p>Scan the barcode on a book, or type the barcode number below.</p>
+        </div>
+        <form class="barcode-row" onsubmit="handleBarcodeSubmit(); return false;">
+          <input
+            type="text"
+            id="barcode-input"
+            placeholder="Barcode number..."
+            autocomplete="off"
+            autocorrect="off"
+            autocapitalize="off"
+            spellcheck="false"
+            inputmode="none"
+            aria-label="Barcode input"
+          >
+          <button type="submit" class="btn btn-primary">Look Up Book</button>
+        </form>
+        <div class="divider-or">or</div>
+        <div class="scan-hint">
+          <span class="icon">📡</span>
+          <span>Aim the barcode scanner at a book — it will look up automatically</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============================================================
+       LOADING SCREEN
+  ============================================================ -->
+  <div id="screen-loading" class="screen">
+    <div class="spinner"></div>
+    <div id="loading-text">Please wait…</div>
+  </div>
+
+  <!-- ============================================================
+       BOOK SCREEN
+  ============================================================ -->
+  <div id="screen-book" class="screen">
+    <header class="kiosk-header" id="hdr-book"></header>
+    <div class="body">
+      <div class="book-cover-col">
+        <img id="book-cover-img" src="" alt="Book cover"
+          onerror="this.style.display='none';document.getElementById('book-cover-ph').style.display='flex'">
+        <div id="book-cover-ph" class="book-cover-placeholder" style="display:none">📖</div>
+      </div>
+      <div class="book-info-col">
+        <div class="book-title"    id="book-title"></div>
+        <div class="book-subtitle" id="book-subtitle"></div>
+        <div class="book-authors"  id="book-authors"></div>
+        <div class="book-meta-row">
+          <span id="book-year"></span>
+          <span id="book-publisher"></span>
+          <span id="book-pages"></span>
+        </div>
+        <div class="book-synopsis" id="book-synopsis"></div>
+        <div class="book-status-row">
+          <div id="book-status-badge" class="status-badge"></div>
+          <div id="book-checkout-detail" class="checkout-detail" style="display:none"></div>
+        </div>
+      </div>
+      <div class="book-action-col" id="book-actions"></div>
+    </div>
+  </div>
+
+  <!-- ============================================================
+       USER SEARCH SCREEN
+  ============================================================ -->
+  <div id="screen-user-search" class="screen">
+    <header class="kiosk-header" id="hdr-us"></header>
+    <div class="body">
+      <div class="us-top">
+        <h2>Who is checking out this book? Search by CaneID or UM email.</h2>
+      </div>
+      <div class="search-bar">
+        <input
+          type="text"
+          id="user-search-input"
+          placeholder="CaneID or UM email address…"
+          autocomplete="off"
+          autocorrect="off"
+          spellcheck="false"
+          aria-label="Search users"
+        >
+        <button class="btn btn-primary" onclick="performUserSearch()">Search</button>
+      </div>
+      <div class="user-grid" id="user-grid">
+        <div class="us-empty">Search for yourself above to continue</div>
+      </div>
+      <div class="us-bottom">
+        <button class="btn btn-outline" onclick="goTo('screen-book')">← Back</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============================================================
+       CONFIRM SCREEN
+  ============================================================ -->
+  <div id="screen-confirm" class="screen">
+    <header class="kiosk-header" id="hdr-cf"></header>
+    <div class="body">
+      <div id="confirm-heading"></div>
+      <div class="confirm-cards">
+        <div class="confirm-book-card" id="cf-book"></div>
+        <div class="confirm-user-card" id="cf-user"></div>
+      </div>
+      <div id="cf-notice" class="confirm-notice"></div>
+      <div class="confirm-buttons">
+        <button class="btn btn-outline" id="cf-cancel">Cancel</button>
+        <button class="btn btn-primary" id="cf-ok">Confirm</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============================================================
+       SUCCESS SCREEN
+  ============================================================ -->
+  <div id="screen-success" class="screen">
+    <header class="kiosk-header" id="hdr-sc"></header>
+    <div class="body">
+      <div class="success-circle">✓</div>
+      <div class="success-title"  id="sc-title"></div>
+      <div class="success-msg"    id="sc-msg"></div>
+      <div class="success-detail" id="sc-detail"></div>
+      <div class="success-auto"   id="sc-auto"></div>
+      <button class="btn btn-primary" style="width:180px;margin-top:8px" onclick="goHome()">Done</button>
+    </div>
+  </div>
+
+  <!-- ============================================================
+       ERROR SCREEN
+  ============================================================ -->
+  <div id="screen-error" class="screen">
+    <header class="kiosk-header" id="hdr-er"></header>
+    <div class="body">
+      <div class="error-circle">!</div>
+      <div class="error-heading">Something went wrong</div>
+      <div class="error-msg" id="er-msg"></div>
+      <div class="error-buttons">
+        <button class="btn btn-outline" onclick="goHome()">Home</button>
+        <button class="btn btn-primary" onclick="retryLast()">Try Again</button>
+      </div>
+    </div>
+  </div>
+
+</div><!-- #app -->
+
+<!-- ================================================================
+     JAVASCRIPT
+================================================================ -->
+<script>
+"use strict";
+
+/* ================================================================
+   ██████╗ ██████╗ ███╗   ██╗███████╗██╗ ██████╗
+  ██╔════╝██╔═══██╗████╗  ██║██╔════╝██║██╔════╝
+  ██║     ██║   ██║██╔██╗ ██║█████╗  ██║██║  ███╗
+  ██║     ██║   ██║██║╚██╗██║██╔══╝  ██║██║   ██║
+  ╚██████╗╚██████╔╝██║ ╚████║██║     ██║╚██████╔╝
+   ╚═════╝ ╚═════╝ ╚═╝  ╚═══╝╚═╝     ╚═╝ ╚═════╝
+
+  Update the values below. Everything else is automatic.
+================================================================ */
+const CONFIG = {
+
+  // ── Branding ───────────────────────────────────────────────────
+  libraryName:   "PETAL Library",
+  institutionName: "University of Miami",
+  // Logo URL — can be a local file path (e.g. "logo.png") or a full URL.
+  // If the image fails to load, the logoFallbackText is shown instead.
+  logoSrc:          "https://petal.miami.edu/_assets/images/system-images/logo-petal-large-589x77.svg",
+  logoFallbackText: "PETAL",
+
+  // ── Power Automate Flow URLs ────────────────────────────────────
+  // Paste the "HTTP POST URL" from each flow's trigger here.
+  // SharePoint site: https://miamiedu-my.sharepoint.com/personal/mma259_miami_edu
+  // List name: PETAL Library Inventory
+  flows: {
+    getBook:    "https://default2a144b72f23942d48c0e6f0f17c48e.33.environment.api.powerplatform.com:443/powerautomate/automations/direct/workflows/88cb3c56229947f1ba972412190a82bf/triggers/manual/paths/invoke?api-version=1&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=gOMPVswzckdA9rZomprFcb9kLNGVY4f-PiNg6uPhBHo",
+    searchUsers:"https://default2a144b72f23942d48c0e6f0f17c48e.33.environment.api.powerplatform.com:443/powerautomate/automations/direct/workflows/15ad6b338dcf4f49948471fac905a159/triggers/manual/paths/invoke?api-version=1&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=T1HJEZqTcX_EjhpAFp654hUXQ7Ex1lbyHr6zQT4xt6E",
+    checkout:   "https://default2a144b72f23942d48c0e6f0f17c48e.33.environment.api.powerplatform.com:443/powerautomate/automations/direct/workflows/e4fde6fe01274d6cb7546c13a92ea1f7/triggers/manual/paths/invoke?api-version=1&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=FqDR7NsCgQehUU0tnyXUPPYkpGLaNPM64RySo8TmYAU",
+    checkin:    "https://default2a144b72f23942d48c0e6f0f17c48e.33.environment.api.powerplatform.com:443/powerautomate/automations/direct/workflows/b8e0ec23f4014539be269c1273c43d74/triggers/manual/paths/invoke?api-version=1&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=lXYUk0vQ60Jg4-loe7DpkLgSal1bEqy8NRG0sIMbijs",
+    renew:      "https://default2a144b72f23942d48c0e6f0f17c48e.33.environment.api.powerplatform.com:443/powerautomate/automations/direct/workflows/29a72a1dcbde4f62b6b36fd3e8e6ff9b/triggers/manual/paths/invoke?api-version=1&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=GxQZUJ1vFoOu-3lYWmAHvKsp1MZ_lDX_Et6KclQ0tUM",
+  },
+
+  // ── Checkout Rules ─────────────────────────────────────────────
+  checkoutDays: 14,  // default loan period
+  renewalDays:   7,  // days added on renewal
+
+  // ── UI Timing (seconds) ─────────────────────────────────────────
+  autoReturnDelay: 8,   // auto-go-home after success
+  idleTimeout:    90,   // auto-go-home after inactivity
+
+  // ── Theme Colors ────────────────────────────────────────────────
+  // Uses University of Miami green + orange by default.
+  // Replace with your department's hex colors if needed.
+  primaryColor: "#005030",
+  accentColor:  "#f47321",
+
+};
+/* ================================================================
+   END CONFIG
+================================================================ */
+
+
+/* ================================================================
+   STATE
+================================================================ */
+const state = {
+  screen:        "screen-home",
+  book:          null,   // current book object from API
+  user:          null,   // selected user object
+  action:        null,   // "checkout" | "checkin" | "renew"
+  lastFn:        null,   // function to retry on error
+  idleTimer:     null,
+  countdownTimer:null,
+};
+
+
+/* ================================================================
+   INIT
+================================================================ */
+document.addEventListener("DOMContentLoaded", () => {
+  applyTheme();
+  buildHeaders();
+  initBarcodeCapture();
+  initIdleReset();
+  focusBarcode();
+});
+
+function applyTheme() {
+  const r = document.documentElement.style;
+  r.setProperty("--primary",      CONFIG.primaryColor);
+  r.setProperty("--primary-dark", shadeColor(CONFIG.primaryColor, -18));
+  r.setProperty("--accent",       CONFIG.accentColor);
+}
+
+/* Build each header from CONFIG so the logo + name appear on every screen */
+function buildHeaders() {
+  const headerIds = ["hdr-home","hdr-book","hdr-us","hdr-cf","hdr-sc","hdr-er"];
+  const showInst  = ["hdr-home","hdr-book"];
+
+  headerIds.forEach(id => {
+    const hdr = document.getElementById(id);
+    if (!hdr) return;
+
+    // Logo
+    const logoWrap = document.createElement("div");
+    const img = document.createElement("img");
+    img.src = CONFIG.logoSrc;
+    img.alt = CONFIG.logoFallbackText;
+    img.className = "logo-img";
+    img.onerror = function() {
+      this.replaceWith(makeFallbackLogo());
+    };
+    logoWrap.appendChild(img);
+    hdr.appendChild(logoWrap);
+
+    // Title block
+    const titles = document.createElement("div");
+    titles.className = "hdr-titles";
+    const name = document.createElement("div");
+    name.className = "hdr-name";
+    name.textContent = CONFIG.libraryName;
+    titles.appendChild(name);
+    if (showInst.includes(id)) {
+      const inst = document.createElement("div");
+      inst.className = "hdr-inst";
+      inst.textContent = CONFIG.institutionName;
+      titles.appendChild(inst);
+    }
+    hdr.appendChild(titles);
+
+    // (clock removed)
+  });
+}
+
+function makeFallbackLogo() {
+  const d = document.createElement("div");
+  d.className = "logo-text";
+  d.textContent = CONFIG.logoFallbackText;
+  return d;
+}
+
+// clock removed
+
+
+/* ================================================================
+   SCREEN NAVIGATION
+================================================================ */
+function goTo(id) {
+  document.querySelectorAll(".screen").forEach(s => s.classList.remove("active"));
+  document.getElementById(id).classList.add("active");
+  state.screen = id;
+  resetIdle();
+  if (id === "screen-home")        focusBarcode();
+  if (id === "screen-user-search") setTimeout(() => userSearchInput().focus(), 120);
+}
+
+function goHome() {
+  stopCountdown();
+  state.book   = null;
+  state.user   = null;
+  state.action = null;
+  barcodeInput().value = "";
+  userSearchInput().value = "";
+  document.getElementById("user-grid").innerHTML =
+    '<div class="us-empty">Search for yourself above to continue</div>';
+  goTo("screen-home");
+}
+
+function showLoading(msg) {
+  document.getElementById("loading-text").textContent = msg || "Please wait…";
+  goTo("screen-loading");
+}
+
+function showError(msg) {
+  document.getElementById("er-msg").textContent = msg;
+  goTo("screen-error");
+}
+
+function retryLast() {
+  if (state.lastFn) state.lastFn();
+  else goHome();
+}
+
+
+/* ================================================================
+   IDLE TIMER
+================================================================ */
+function initIdleReset() {
+  ["click","touchstart","keydown","mousemove"].forEach(ev =>
+    document.addEventListener(ev, resetIdle, { passive: true })
+  );
+  resetIdle();
+}
+
+function resetIdle() {
+  clearTimeout(state.idleTimer);
+  const safe = ["screen-home","screen-loading"];
+  if (!safe.includes(state.screen)) {
+    state.idleTimer = setTimeout(goHome, CONFIG.idleTimeout * 1000);
+  }
+}
+
+
+/* ================================================================
+   BARCODE CAPTURE
+   Bluetooth scanners act as HID keyboards: they type characters
+   rapidly and then send Enter. We keep the input focused on the
+   home screen; a global fallback re-focuses it if needed.
+================================================================ */
+function initBarcodeCapture() {
+  barcodeInput().addEventListener("keydown", e => {
+    if (e.key === "Enter") { e.preventDefault(); handleBarcodeSubmit(); }
+  });
+
+  // If something else steals focus on the home screen, redirect keystrokes back
+  document.addEventListener("keydown", e => {
+    if (state.screen !== "screen-home") return;
+    const tag = document.activeElement?.tagName;
+    if (tag === "INPUT" || tag === "TEXTAREA" || tag === "BUTTON") return;
+    barcodeInput().focus();
+  });
+}
+
+function focusBarcode() {
+  setTimeout(() => barcodeInput().focus(), 150);
+}
+
+function handleBarcodeSubmit() {
+  const val = barcodeInput().value.trim();
+  if (val) lookupBook(val);
+}
+
+/* DOM shortcuts */
+const barcodeInput    = () => document.getElementById("barcode-input");
+const userSearchInput = () => document.getElementById("user-search-input");
+
+
+/* ================================================================
+   API HELPERS
+================================================================ */
+async function callFlow(url, body) {
+  const res = await fetch(url, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
+  if (!res.ok) {
+    const txt = await res.text().catch(() => "");
+    throw new Error(`HTTP ${res.status}${txt ? ": " + txt : ""}`);
+  }
+  // Some PA flows return 202 with empty body; guard against that
+  const text = await res.text();
+  return text ? JSON.parse(text) : {};
+}
+
+
+/* ================================================================
+   BOOK LOOKUP
+================================================================ */
+async function lookupBook(barcode) {
+  barcode = barcode.trim();
+  state.lastFn = () => lookupBook(barcode);
+  showLoading("Looking up book…");
+  try {
+    const book = await callFlow(CONFIG.flows.getBook, { barcode });
+    state.book = book;
+    renderBookScreen(book);
+  } catch (err) {
+    console.error(err);
+    showError("Could not find a book with that barcode. Please double-check and try again, or ask for assistance.");
+  }
+}
+
+function renderBookScreen(book) {
+  // Cover
+  const coverImg = document.getElementById("book-cover-img");
+  const coverPh  = document.getElementById("book-cover-ph");
+  if (book.thumbnailUrl) {
+    coverImg.src = book.thumbnailUrl;
+    coverImg.style.display = "";
+    coverPh.style.display  = "none";
+  } else {
+    coverImg.style.display = "none";
+    coverPh.style.display  = "flex";
+  }
+
+  // Text
+  setText("book-title",    book.title   || "Untitled");
+  setText("book-subtitle", book.subtitle || "");
+  setText("book-authors",  book.authors  ? "By " + book.authors : "");
+  setText("book-year",      book.yearPublished ? "© " + book.yearPublished : "");
+  setText("book-publisher", book.publisher || "");
+  setText("book-pages",     book.pageCount   ? book.pageCount + " pages" : "");
+  setText("book-synopsis",  book.synopsis    || "");
+
+  show("book-subtitle", !!book.subtitle);
+
+  // Status + actions
+  const badge      = document.getElementById("book-status-badge");
+  const detail     = document.getElementById("book-checkout-detail");
+  const actions    = document.getElementById("book-actions");
+  const status     = (book.status || "").toLowerCase();
+
+  detail.style.display = "none";
+  detail.innerHTML = "";
+
+  if (status === "available") {
+    badge.className = "status-badge available";
+    badge.textContent = "✓ Available";
+    actions.innerHTML = `
+      <button class="btn btn-primary" onclick="startCheckout()">📚 Check Out</button>
+      <button class="btn btn-ghost"   onclick="goHome()">← Back to Home</button>
+    `;
+
+  } else if (status === "checked out") {
+    badge.className = "status-badge checked-out";
+    badge.textContent = "⏱ Checked Out";
+    const dueStr  = book.dueBackDate ? fmtDate(book.dueBackDate) : "unknown date";
+    const whoStr  = esc(book.borrowerName || "a patron");
+    detail.innerHTML = `Checked out by <strong>${whoStr}</strong> · Due back <strong>${dueStr}</strong>`;
+    detail.style.display = "";
+    actions.innerHTML = `
+      <button class="btn btn-accent"  onclick="startCheckin()">↩ Return This Book</button>
+      <button class="btn btn-outline" onclick="startRenew()">🔄 Renew (+${CONFIG.renewalDays} days)</button>
+      <p class="action-note">Only the current borrower should renew or return.</p>
+      <button class="btn btn-ghost"   onclick="goHome()">← Back to Home</button>
+    `;
+
+  } else {
+    // Lost, Retired, or anything else
+    badge.className = "status-badge unavailable";
+    badge.textContent = "✕ " + (book.status || "Unavailable");
+    actions.innerHTML = `
+      <p class="action-note" style="font-size:16px;padding:0 8px">
+        This book is not available for checkout.
+      </p>
+      <button class="btn btn-outline" onclick="goHome()">← Back to Home</button>
+    `;
+  }
+
+  goTo("screen-book");
+}
+
+
+/* ================================================================
+   USER SEARCH
+================================================================ */
+function startCheckout() {
+  state.action = "checkout";
+  goTo("screen-user-search");
+}
+
+// Wire up Enter key in the user search input
+document.addEventListener("DOMContentLoaded", () => {
+  userSearchInput().addEventListener("keydown", e => {
+    if (e.key === "Enter") performUserSearch();
+  });
+});
+
+async function performUserSearch() {
+  const q = userSearchInput().value.trim();
+  const grid = document.getElementById("user-grid");
+  if (q.length < 2) {
+    grid.innerHTML = '<div class="us-empty">Please enter at least 2 characters</div>';
+    return;
+  }
+  grid.innerHTML = '<div class="us-empty">🔍 Searching…</div>';
+  try {
+    const data  = await callFlow(CONFIG.flows.searchUsers, { query: q });
+    const users = Array.isArray(data) ? data : (data.users || []);
+    if (!users.length) {
+      grid.innerHTML = '<div class="us-empty">No results. Try a different name or email address.</div>';
+      return;
+    }
+    grid.innerHTML = "";
+    users.slice(0, 9).forEach(u => grid.appendChild(buildUserCard(u)));
+  } catch (err) {
+    console.error(err);
+    grid.innerHTML = '<div class="us-empty" style="color:var(--error)">Search failed. Please try again.</div>';
+  }
+}
+
+function buildUserCard(user) {
+  const card = document.createElement("div");
+  card.className = "user-card";
+  card.onclick = () => selectUser(user);
+
+  // Avatar
+  card.appendChild(buildAvatar(user, 52));
+
+  // Text
+  const t = document.createElement("div");
+  t.className = "user-card-text";
+  const sub = [user.jobTitle, user.department].filter(Boolean).join(" · ");
+  t.innerHTML = `
+    <div class="user-card-name">${esc(user.displayName || "Unknown")}</div>
+    <div class="user-card-sub">${esc(sub)}</div>
+    <div class="user-card-sub">${esc(user.mail || user.email || "")}</div>
+  `;
+  card.appendChild(t);
+  return card;
+}
+
+function selectUser(user) {
+  state.user = user;
+  showConfirmCheckout();
+}
+
+
+/* ================================================================
+   RETURN & RENEW
+================================================================ */
+function startCheckin() {
+  state.action = "checkin";
+  state.user   = null;
+  showConfirmCheckin();
+}
+
+function startRenew() {
+  state.action = "renew";
+  state.user   = null;
+  showConfirmRenew();
+}
+
+
+/* ================================================================
+   CONFIRM SCREENS
+================================================================ */
+function showConfirmCheckout() {
+  const book    = state.book;
+  const user    = state.user;
+  const dueDate = addDays(new Date(), CONFIG.checkoutDays);
+
+  document.getElementById("confirm-heading").textContent = "Confirm Checkout";
+  renderConfirmBook(book);
+  renderConfirmUser(user);
+
+  const notice = document.getElementById("cf-notice");
+  notice.className = "confirm-notice checkout";
+  notice.innerHTML = `📅 Due back by <strong>${fmtDate(dueDate)}</strong> (${CONFIG.checkoutDays} days)`;
+
+  document.getElementById("cf-cancel").onclick = () => goTo("screen-user-search");
+  document.getElementById("cf-ok").textContent  = "Confirm Checkout";
+  document.getElementById("cf-ok").onclick       = confirmCheckout;
+  goTo("screen-confirm");
+}
+
+function showConfirmCheckin() {
+  const book = state.book;
+  document.getElementById("confirm-heading").textContent = "Return This Book";
+  renderConfirmBook(book);
+
+  const cfUser = document.getElementById("cf-user");
+  cfUser.innerHTML = `
+    <div style="font-size:60px">📚</div>
+    <div class="cu-name">Returning to library</div>
+    ${book.borrowerName ? `<div class="cu-detail">Borrowed by: ${esc(book.borrowerName)}</div>` : ""}
+  `;
+
+  const notice = document.getElementById("cf-notice");
+  notice.className = "confirm-notice checkin";
+  notice.innerHTML = `↩ The book will be marked <strong>Available</strong>`;
+
+  document.getElementById("cf-cancel").onclick = () => goTo("screen-book");
+  document.getElementById("cf-ok").textContent  = "Confirm Return";
+  document.getElementById("cf-ok").onclick       = confirmCheckin;
+  goTo("screen-confirm");
+}
+
+function showConfirmRenew() {
+  const book    = state.book;
+  const curDue  = book.dueBackDate ? new Date(book.dueBackDate) : new Date();
+  const newDue  = addDays(new Date(Math.max(curDue, Date.now())), CONFIG.renewalDays);
+
+  document.getElementById("confirm-heading").textContent = "Renew This Book";
+  renderConfirmBook(book);
+
+  const cfUser = document.getElementById("cf-user");
+  cfUser.innerHTML = `
+    <div style="font-size:60px">🔄</div>
+    <div class="cu-name">Renewal</div>
+    ${book.borrowerName ? `<div class="cu-detail">Borrowed by: ${esc(book.borrowerName)}</div>` : ""}
+    <div class="cu-detail">Current due: ${fmtDate(curDue)}</div>
+  `;
+
+  const notice = document.getElementById("cf-notice");
+  notice.className = "confirm-notice renew";
+  notice.innerHTML = `🔄 New due date: <strong>${fmtDate(newDue)}</strong> (+${CONFIG.renewalDays} days)`;
+
+  document.getElementById("cf-cancel").onclick = () => goTo("screen-book");
+  document.getElementById("cf-ok").textContent  = "Confirm Renewal";
+  document.getElementById("cf-ok").onclick       = confirmRenew;
+  goTo("screen-confirm");
+}
+
+function renderConfirmBook(book) {
+  const el = document.getElementById("cf-book");
+  const cover = book.thumbnailUrl
+    ? `<img src="${esc(book.thumbnailUrl)}" alt="cover"
+         onerror="this.style.display='none'"
+         style="width:110px;height:165px;object-fit:cover;border-radius:6px;flex-shrink:0">`
+    : `<div class="confirm-book-cover-ph">📖</div>`;
+  el.innerHTML = `
+    ${cover}
+    <div class="confirm-book-text">
+      <h3>${esc(book.title || "")}</h3>
+      ${book.subtitle ? `<div style="font-style:italic;color:var(--text-muted);margin-bottom:6px">${esc(book.subtitle)}</div>` : ""}
+      <div class="cb-authors">${esc(book.authors ? "By " + book.authors : "")}</div>
+      ${book.yearPublished ? `<div class="cb-detail">Published: ${esc(String(book.yearPublished))}</div>` : ""}
+      ${book.publisher    ? `<div class="cb-detail">${esc(book.publisher)}</div>` : ""}
+    </div>
+  `;
+}
+
+function renderConfirmUser(user) {
+  const el  = document.getElementById("cf-user");
+  const av  = buildAvatar(user, 90);
+  const sub = [user.jobTitle, user.department].filter(Boolean).join(" · ");
+  el.innerHTML = "";
+  el.appendChild(av);
+  const info = document.createElement("div");
+  info.innerHTML = `
+    <div class="cu-name">${esc(user.displayName || "")}</div>
+    ${sub   ? `<div class="cu-detail">${esc(sub)}</div>` : ""}
+    ${user.mail||user.email ? `<div class="cu-detail">${esc(user.mail||user.email)}</div>` : ""}
+  `;
+  el.appendChild(info);
+}
+
+
+/* ================================================================
+   ACTIONS (API calls)
+================================================================ */
+async function confirmCheckout() {
+  const { book, user } = state;
+  state.lastFn = confirmCheckout;
+  showLoading("Checking out…");
+  try {
+    await callFlow(CONFIG.flows.checkout, {
+      barcode:        book.barcode,
+      userEmail:      user.mail || user.email || "",
+      userDisplayName:user.displayName || "",
+      userId:         user.id || "",
+    });
+    const due = addDays(new Date(), CONFIG.checkoutDays);
+    showSuccess(
+      "Checked Out!",
+      `Enjoy reading "${book.title}"`,
+      `Due back by ${fmtDate(due)}`
+    );
+  } catch (err) {
+    console.error(err);
+    showError("Checkout failed. Please ask staff for assistance.");
+  }
+}
+
+async function confirmCheckin() {
+  state.lastFn = confirmCheckin;
+  showLoading("Returning book…");
+  try {
+    await callFlow(CONFIG.flows.checkin, { barcode: state.book.barcode });
+    showSuccess(
+      "Book Returned!",
+      `"${state.book.title}" has been returned.`,
+      "Thank you!"
+    );
+  } catch (err) {
+    console.error(err);
+    showError("Return failed. Please ask staff for assistance.");
+  }
+}
+
+async function confirmRenew() {
+  state.lastFn = confirmRenew;
+  showLoading("Renewing book…");
+  try {
+    const data   = await callFlow(CONFIG.flows.renew, { barcode: state.book.barcode });
+    const newDue = data.newDueDate || null;
+    showSuccess(
+      "Book Renewed!",
+      `"${state.book.title}" has been renewed.`,
+      newDue ? `New due date: ${fmtDate(newDue)}` : `Extended by ${CONFIG.renewalDays} days`
+    );
+  } catch (err) {
+    console.error(err);
+    showError("Renewal failed. Please ask staff for assistance.");
+  }
+}
+
+
+/* ================================================================
+   SUCCESS SCREEN + COUNTDOWN
+================================================================ */
+function showSuccess(title, msg, detail) {
+  stopCountdown();
+  setText("sc-title",  title);
+  setText("sc-msg",    msg);
+  setText("sc-detail", detail);
+  let secs = CONFIG.autoReturnDelay;
+  const autoEl = document.getElementById("sc-auto");
+  autoEl.innerHTML = `Returning to home in <strong>${secs}</strong> seconds…`;
+  goTo("screen-success");
+  state.countdownTimer = setInterval(() => {
+    secs--;
+    autoEl.innerHTML = `Returning to home in <strong>${secs}</strong> seconds…`;
+    if (secs <= 0) { stopCountdown(); goHome(); }
+  }, 1000);
+}
+
+function stopCountdown() {
+  clearInterval(state.countdownTimer);
+  state.countdownTimer = null;
+}
+
+
+/* ================================================================
+   AVATAR BUILDER
+================================================================ */
+function buildAvatar(user, size) {
+  if (user.photoBase64) {
+    const img = document.createElement("img");
+    img.src    = `data:image/jpeg;base64,${user.photoBase64}`;
+    img.alt    = user.displayName || "";
+    img.style.cssText = avatarStyles(size);
+    img.onerror = () => img.replaceWith(initialsAvatar(user, size));
+    return img;
+  }
+  return initialsAvatar(user, size);
+}
+
+function initialsAvatar(user, size) {
+  const d = document.createElement("div");
+  d.style.cssText = avatarStyles(size) + `background:${hashColor(user.mail||user.displayName||"")};display:flex;align-items:center;justify-content:center;color:white;font-weight:700;font-size:${Math.round(size*0.37)}px;`;
+  d.textContent = initials(user.displayName || user.mail || "?");
+  return d;
+}
+
+function avatarStyles(size) {
+  return `width:${size}px;height:${size}px;border-radius:50%;object-fit:cover;flex-shrink:0;`;
+}
+
+function initials(name) {
+  return name.split(/[\s,]+/).filter(Boolean).slice(0,2).map(w => w[0].toUpperCase()).join("");
+}
+
+const AVATAR_COLORS = ["#1976d2","#388e3c","#7b1fa2","#c62828","#e65100","#00838f","#37474f","#558b2f","#ad1457","#1565c0"];
+function hashColor(str) {
+  let h = 0;
+  for (let i = 0; i < str.length; i++) h = str.charCodeAt(i) + ((h << 5) - h);
+  return AVATAR_COLORS[Math.abs(h) % AVATAR_COLORS.length];
+}
+
+
+/* ================================================================
+   UTILITIES
+================================================================ */
+function fmtDate(d) {
+  if (!d) return "Unknown";
+  try {
+    return new Date(d).toLocaleDateString("en-US", {
+      weekday:"long", year:"numeric", month:"long", day:"numeric"
+    });
+  } catch { return String(d); }
+}
+
+function addDays(date, n) {
+  const d = new Date(date);
+  d.setDate(d.getDate() + n);
+  return d;
+}
+
+function shadeColor(hex, pct) {
+  const n = parseInt(hex.replace("#",""), 16);
+  const clamp = v => Math.min(255, Math.max(0, v));
+  const amt = Math.round(2.55 * pct);
+  const r = clamp(((n >> 16) & 0xff) + amt);
+  const g = clamp(((n >>  8) & 0xff) + amt);
+  const b = clamp(( n        & 0xff) + amt);
+  return "#" + [r,g,b].map(v => v.toString(16).padStart(2,"0")).join("");
+}
+
+function setText(id, val) {
+  const el = document.getElementById(id);
+  if (el) el.textContent = val;
+}
+
+function show(id, visible) {
+  const el = document.getElementById(id);
+  if (el) el.style.display = visible ? "" : "none";
+}
+
+// Safe HTML escaping
+function esc(str) {
+  const d = document.createElement("div");
+  d.appendChild(document.createTextNode(String(str)));
+  return d.innerHTML;
+}
+</script>
+</body>
+</html>
